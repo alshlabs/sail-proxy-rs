@@ -18,14 +18,15 @@ Or build from source with `cargo run`.
 ## Run
 
 ```sh
-SAIL_API_KEY=... sail-proxy-rs
+sail-proxy-rs
 ```
 
 | Variable | Default | |
 |---|---|---|
-| `SAIL_API_KEY` | — | Required. |
 | `SAIL_API_BASE` | `https://api.sailresearch.com/v1` | Sail API endpoint. |
 | `SAIL_PROXY_ADDRESS` | `0.0.0.0:9090` | Address the proxy listens on. |
+
+The proxy forwards each client's `Authorization: Bearer <token>` header to Sail, so clients authenticate with their own Sail API key. Requests without a bearer token are rejected with `401`.
 
 ## Update
 

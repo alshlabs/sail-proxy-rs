@@ -8,6 +8,7 @@ use uhttp::Request;
 use uhttp::Response;
 
 use crate::handler_context::HandlerContext;
+use crate::handlers::internal::access_token;
 use crate::sail;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
@@ -18,15 +19,19 @@ pub async fn v1_chat_completions_post(
   ctx: HandlerContext,
 ) -> uhttp::HandlerResult {
   let body = uhttp::body::json::<serde_json::Value>(&mut req.body).await?;
+  let access_token = match access_token(&req) {
+    Ok(token) => token,
+    Err(error) => return error_response(res, 401, "invalid_request_error", &error),
+  };
 
   if body
     .get("stream")
     .and_then(|v| v.as_bool())
     .unwrap_or(false)
   {
-    handle_stream(req, res, ctx, body).await
+    handle_stream(req, res, ctx, body, &access_token).await
   } else {
-    handle_blocking(req, res, ctx, body).await
+    handle_blocking(req, res, ctx, body, &access_token).await
   }
 }
 
@@ -35,6 +40,7 @@ async fn handle_blocking(
   res: Response,
   ctx: HandlerContext,
   body: serde_json::Value,
+  access_token: &str,
 ) -> uhttp::HandlerResult {
   let request = match to_sail_request(&body) {
     Ok(request) => request,
@@ -45,7 +51,7 @@ async fn handle_blocking(
   let pending = match sail::create_background_response(
     &ctx.client,
     &ctx.config.sail_api_base,
-    &ctx.config.sail_api_key,
+    access_token,
     &idempotency_key,
     &request,
   )
@@ -55,7 +61,7 @@ async fn handle_blocking(
     Err(error) => return error_response(res, 502, "server_error", &error),
   };
 
-  let response = match wait_for_completion(&ctx, pending).await {
+  let response = match wait_for_completion(&ctx, access_token, pending).await {
     Ok(response) => response,
     Err(error) => return error_response(res, 502, "server_error", &error),
   };
@@ -96,6 +102,7 @@ async fn handle_stream(
   res: Response,
   ctx: HandlerContext,
   body: serde_json::Value,
+  access_token: &str,
 ) -> uhttp::HandlerResult {
   let request = match to_sail_request(&body) {
     Ok(request) => request,
@@ -106,7 +113,7 @@ async fn handle_stream(
   let pending = match sail::create_background_response(
     &ctx.client,
     &ctx.config.sail_api_base,
-    &ctx.config.sail_api_key,
+    access_token,
     &idempotency_key,
     &request,
   )
@@ -119,6 +126,7 @@ async fn handle_stream(
   let created = pending.created_at;
   let id = pending.id.clone();
   let model = pending.model.clone();
+  let access_token = access_token.to_string();
   let include_usage = body["stream_options"]["include_usage"].as_bool() == Some(true);
   let (response_body, mut stream) = uhttp::ResponseBody::chunked(64);
 
@@ -143,7 +151,7 @@ async fn handle_stream(
       return;
     }
 
-    let job = wait_for_completion(&ctx, pending);
+    let job = wait_for_completion(&ctx, &access_token, pending);
     tokio::pin!(job);
 
     let mut heartbeat = tokio::time::interval(Duration::from_secs(15));
@@ -224,6 +232,7 @@ fn error_response(
 
 async fn wait_for_completion(
   ctx: &HandlerContext,
+  access_token: &str,
   mut response: sail::SailResponse,
 ) -> anyhow::Result<sail::SailResponse> {
   while !response.status.is_terminal() {
@@ -231,7 +240,7 @@ async fn wait_for_completion(
     if let Some(next) = sail::get_response(
       &ctx.client,
       &ctx.config.sail_api_base,
-      &ctx.config.sail_api_key,
+      access_token,
       &response.id,
     )
     .await?
