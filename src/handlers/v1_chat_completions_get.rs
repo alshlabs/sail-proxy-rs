@@ -1,6 +1,4 @@
 use std::time::Duration;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
 
 use anyhow::Context;
 use serde_json::Value;
@@ -35,33 +33,57 @@ pub async fn v1_chat_completions_post(
 async fn handle_blocking(
   _req: Request,
   res: Response,
-  _ctx: HandlerContext,
+  ctx: HandlerContext,
   body: serde_json::Value,
 ) -> uhttp::HandlerResult {
-  let created = SystemTime::now()
-    .duration_since(UNIX_EPOCH)
-    .unwrap()
-    .as_secs();
-  let model = body["model"].as_str().unwrap_or("mock-model");
+  let request = match to_sail_request(&body) {
+    Ok(request) => request,
+    Err(error) => return error_response(res, 400, "invalid_request_error", &error),
+  };
+
+  let idempotency_key = uuid::Uuid::new_v4().to_string();
+  let pending = match sail::create_background_response(
+    &ctx.client,
+    &ctx.config.sail_api_base,
+    &ctx.config.sail_api_key,
+    &idempotency_key,
+    &request,
+  )
+  .await
+  {
+    Ok(pending) => pending,
+    Err(error) => return error_response(res, 502, "server_error", &error),
+  };
+
+  let response = match wait_for_completion(&ctx, pending).await {
+    Ok(response) => response,
+    Err(error) => return error_response(res, 502, "server_error", &error),
+  };
+
+  let completion = match to_completion(&response) {
+    Ok(completion) => completion,
+    Err(error) => return res.status(502).json(json!({ "error": error })),
+  };
+
+  let mut message = serde_json::Map::new();
+  message.insert("role".to_string(), json!("assistant"));
+  for delta in completion.deltas {
+    if let Value::Object(fields) = delta {
+      message.extend(fields);
+    }
+  }
 
   let response = json!({
-    "id": format!("chatcmpl-{created}"),
+    "id": response.id,
     "object": "chat.completion",
-    "created": created,
-    "model": model,
+    "created": response.created_at,
+    "model": response.model,
     "choices": [{
       "index": 0,
-      "message": {
-        "role": "assistant",
-        "content": "This is a mock response."
-      },
-      "finish_reason": "stop"
+      "message": Value::Object(message),
+      "finish_reason": completion.finish_reason
     }],
-    "usage": {
-      "prompt_tokens": 0,
-      "completion_tokens": 0,
-      "total_tokens": 0
-    }
+    "usage": to_chat_usage(&response.usage.unwrap_or_default())
   });
 
   res
