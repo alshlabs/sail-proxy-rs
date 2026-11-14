@@ -1,4 +1,3 @@
-use crate::config::Config;
 use crate::platform::self_upgrade;
 
 #[derive(Debug, clap::Args)]

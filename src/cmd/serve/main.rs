@@ -27,7 +27,6 @@ pub async fn main(cmd: ServeCommand) -> anyhow::Result<()> {
   let ctx = HandlerContext {
     client: reqwest::Client::new(),
     sail_api_base: cmd.sail_api_base.clone(),
-    address: cmd.address.clone(),
   };
 
   let mut app = Router::<HandlerContext>::new(ctx).with(uhttp::middleware::logger_default);

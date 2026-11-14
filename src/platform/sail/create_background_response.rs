@@ -2,7 +2,6 @@
 use reqwest::StatusCode;
 use serde::Deserialize;
 use serde::Serialize;
-use serde_json::json;
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct CreateResponseRequest {
@@ -305,12 +304,25 @@ pub struct SailResponse {
   pub usage: Option<Usage>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CompletionWindow {
+  Balanced,
+  Flex,
+}
+
 #[derive(Serialize)]
 struct BackgroundRequest<'a> {
   #[serde(flatten)]
   request: &'a CreateResponseRequest,
   background: bool,
-  metadata: serde_json::Value,
+  metadata: Metadata,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct Metadata {
+  #[serde(skip_serializing_if = "Option::is_none")]
+  completion_window: Option<CompletionWindow>,
 }
 
 pub async fn create_background_response(
@@ -318,6 +330,7 @@ pub async fn create_background_response(
   base_url: &str,
   api_key: &str,
   idempotency_key: &str,
+  completion_window: Option<CompletionWindow>,
   request: &CreateResponseRequest,
 ) -> anyhow::Result<SailResponse> {
   let res = client
@@ -326,8 +339,8 @@ pub async fn create_background_response(
     .header("Idempotency-Key", idempotency_key)
     .json(&BackgroundRequest {
       request,
-      background: true,
-      metadata: json!({ "completion_window": "flex" }),
+      background: completion_window.is_some(),
+      metadata: Metadata { completion_window },
     })
     .send()
     .await?;

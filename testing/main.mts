@@ -4,8 +4,8 @@ import {chat} from './chat.mts'
 const TOKEN = process.env.SAIL_API_KEY
 
 console.log(await chat(
-    'http://localhost:5051/v1', 
+    'http://localhost:9091/v1', 
     TOKEN,
-    "deepseek-flash",
+    "deepseek-flash-flex",
     'Hellooo'
 ))

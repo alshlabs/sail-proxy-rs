@@ -9,6 +9,7 @@ use uhttp::Response;
 
 use super::HandlerContext;
 use super::internal::access_token;
+use super::internal::match_alias;
 use crate::platform::sail;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
@@ -53,6 +54,7 @@ async fn handle_blocking(
     &ctx.sail_api_base,
     access_token,
     &idempotency_key,
+    completion_window(&body),
     &request,
   )
   .await
@@ -115,6 +117,7 @@ async fn handle_stream(
     &ctx.sail_api_base,
     access_token,
     &idempotency_key,
+    completion_window(&body),
     &request,
   )
   .await
@@ -246,6 +249,14 @@ async fn wait_for_completion(
   Ok(response)
 }
 
+fn completion_window(body: &Value) -> Option<sail::CompletionWindow> {
+  match body["model"].as_str() {
+    Some("deepseek-flash-flex") => Some(sail::CompletionWindow::Flex),
+    Some("deepseek-flash-balanced") => Some(sail::CompletionWindow::Balanced),
+    _ => None,
+  }
+}
+
 fn to_sail_request(body: &Value) -> anyhow::Result<sail::CreateResponseRequest> {
   let mut input = Vec::new();
   for message in body["messages"].as_array().context("missing messages")? {
@@ -298,7 +309,7 @@ fn to_sail_request(body: &Value) -> anyhow::Result<sail::CreateResponseRequest> 
     });
 
   Ok(sail::CreateResponseRequest {
-    model: required_str(&body["model"], "model")?,
+    model: match_alias(&required_str(&body["model"], "model")?).to_string(),
     input,
     instructions: None,
     tools,
