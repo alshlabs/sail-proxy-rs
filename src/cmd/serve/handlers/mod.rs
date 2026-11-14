@@ -8,6 +8,7 @@ use crate::config::Config;
 
 #[derive(Clone)]
 pub struct HandlerContext {
-  pub config: Arc<Config>,
+  pub sail_api_base: String,
+  pub address: String,
   pub client: reqwest::Client,
 }

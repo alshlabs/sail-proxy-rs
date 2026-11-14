@@ -4,21 +4,30 @@ use uhttp::Router;
 
 use super::handlers::HandlerContext;
 use super::handlers::v1_chat_completions_post;
-use crate::config::Config;
 use crate::platform::self_upgrade;
 
-#[derive(Debug, clap::Args)]
-pub struct ServeCommand {}
+#[derive(Debug, Clone, clap::Args)]
+pub struct ServeCommand {
+  /// Base URL of the Sail API
+  #[arg(
+    long,
+    env = "SAIL_API_BASE",
+    default_value = "https://api.sailresearch.com/v1"
+  )]
+  pub sail_api_base: String,
 
-pub async fn main(
-  _cmd: ServeCommand,
-  config: Config,
-) -> anyhow::Result<()> {
+  /// Address to listen on
+  #[arg(long, env = "SAIL_PROXY_ADDRESS", default_value = "0.0.0.0:9090")]
+  pub address: String,
+}
+
+pub async fn main(cmd: ServeCommand) -> anyhow::Result<()> {
   notify_update_available().await;
 
   let ctx = HandlerContext {
-    config: std::sync::Arc::new(config.clone()),
     client: reqwest::Client::new(),
+    sail_api_base: cmd.sail_api_base.clone(),
+    address: cmd.address.clone(),
   };
 
   let mut app = Router::<HandlerContext>::new(ctx).with(uhttp::middleware::logger_default);
@@ -29,10 +38,10 @@ pub async fn main(
   );
   app.post("/v1/chat/completions", v1_chat_completions_post);
 
-  println!("Serving on {}", config.address);
+  println!("Serving on {}", cmd.address);
   uhttp::Server::builder()
     .handler(app.handler())
-    .listen(&config.address)
+    .listen(&cmd.address)
     .await?;
 
   Ok(())

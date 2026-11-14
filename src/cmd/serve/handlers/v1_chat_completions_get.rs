@@ -50,7 +50,7 @@ async fn handle_blocking(
   let idempotency_key = uuid::Uuid::new_v4().to_string();
   let pending = match sail::create_background_response(
     &ctx.client,
-    &ctx.config.sail_api_base,
+    &ctx.sail_api_base,
     access_token,
     &idempotency_key,
     &request,
@@ -112,7 +112,7 @@ async fn handle_stream(
   let idempotency_key = uuid::Uuid::new_v4().to_string();
   let pending = match sail::create_background_response(
     &ctx.client,
-    &ctx.config.sail_api_base,
+    &ctx.sail_api_base,
     access_token,
     &idempotency_key,
     &request,
@@ -237,13 +237,8 @@ async fn wait_for_completion(
 ) -> anyhow::Result<sail::SailResponse> {
   while !response.status.is_terminal() {
     tokio::time::sleep(POLL_INTERVAL).await;
-    if let Some(next) = sail::get_response(
-      &ctx.client,
-      &ctx.config.sail_api_base,
-      access_token,
-      &response.id,
-    )
-    .await?
+    if let Some(next) =
+      sail::get_response(&ctx.client, &ctx.sail_api_base, access_token, &response.id).await?
     {
       response = next;
     }

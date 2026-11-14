@@ -9,13 +9,10 @@ use crate::cmd::ServeCommand;
 use crate::cmd::UpgradeCommand;
 use crate::cmd::serve;
 use crate::cmd::upgrade;
-use crate::config::Config;
 
 #[derive(Debug, Parser)]
 #[command(version)]
 struct Command {
-  #[clap(flatten)]
-  config: Config,
   #[clap(subcommand)]
   command: Commands,
 }
@@ -31,9 +28,9 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-  let Command { config, command } = Command::parse();
+  let Command { command } = Command::parse();
   match command {
-    Commands::Serve(cmd) => serve::main(cmd, config).await,
-    Commands::Update(cmd) => upgrade::main(cmd, config).await,
+    Commands::Serve(cmd) => serve::main(cmd).await,
+    Commands::Update(cmd) => upgrade::main(cmd).await,
   }
 }
