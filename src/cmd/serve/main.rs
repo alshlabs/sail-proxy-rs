@@ -10,10 +10,11 @@ use crate::platform::self_upgrade;
 #[derive(Debug, clap::Args)]
 pub struct ServeCommand {}
 
-pub async fn main(_cmd: ServeCommand) -> anyhow::Result<()> {
+pub async fn main(
+  _cmd: ServeCommand,
+  config: Config,
+) -> anyhow::Result<()> {
   notify_update_available().await;
-
-  let config = Config::parse()?;
 
   let ctx = HandlerContext {
     config: std::sync::Arc::new(config.clone()),
