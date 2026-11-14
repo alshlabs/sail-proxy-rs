@@ -13,12 +13,12 @@ curl -fsSL https://github.com/alshdavid/sail-proxy-rs/releases/latest/download/s
 ./sail-proxy-rs
 ```
 
-Or build from source with `cargo run`.
+Or build from source with `cargo run -- serve`.
 
 ## Run
 
 ```sh
-sail-proxy-rs
+sail-proxy-rs serve
 ```
 
 | Variable | Default | |
@@ -33,7 +33,7 @@ The proxy forwards each client's `Authorization: Bearer <token>` header to Sail,
 On startup the proxy checks GitHub Releases and prints a notice when a newer version is available. To update in place:
 
 ```sh
-sail-proxy-rs --update
+sail-proxy-rs update
 ```
 
 ## Use
