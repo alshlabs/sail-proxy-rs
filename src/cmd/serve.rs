@@ -1,19 +1,20 @@
-use std::sync::Arc;
-
 use uhttp::Router;
 
-use crate::config;
-use crate::handler_context::HandlerContext;
-use crate::handlers;
-use crate::self_upgrade;
+use crate::platform::config::Config;
+use crate::platform::handler_context::HandlerContext;
+use crate::platform::handlers;
+use crate::platform::self_upgrade;
 
-pub async fn run() -> anyhow::Result<()> {
+#[derive(Debug, clap::Args)]
+pub struct ServeCommand {}
+
+pub async fn main(_cmd: ServeCommand) -> anyhow::Result<()> {
   notify_update_available().await;
 
-  let config = Arc::new(config::Config::parse()?);
+  let config = Config::parse()?;
 
   let ctx = HandlerContext {
-    config: config.clone(),
+    config: std::sync::Arc::new(config.clone()),
     client: reqwest::Client::new(),
   };
 

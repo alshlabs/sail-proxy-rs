@@ -16,6 +16,37 @@ Modules are lightweight packages. Each owns one concern and exposes a minimal pu
 - A package's API is plain `pub` functions and types. No trait or facade unless the task needs one.
 - Keep public APIs stable. If the task requires a change, update every caller in the same change.
 
+### Layout
+
+```
+src/
+  cmd/          # CLI subcommands
+    serve.rs
+    upgrade.rs
+  platform/     # self-contained packages
+    config/
+    handler_context/
+    handlers/
+    sail/
+    self_upgrade/
+  main.rs       # clap root, dispatch only
+```
+
+**`cmd` — one file per subcommand.** Each holds the clap args struct and the entrypoint:
+
+- The command's args struct is in the same file, named `ServeCommand`, `UpgradeCommand`, etc. It derives `clap::Args`.
+- The file exports `pub async fn main(cmd: GoCommand) -> anyhow::Result<()>`. `anyhow::Result` is the only CLI return type; use `?` and `anyhow::Context` for errors, and let `main` report them.
+- `cmd/mod.rs` is the single import point: `crate::cmd::ServeCommand` and `crate::cmd::serve`. Never refer to `crate::cmd::serve::...` from outside.
+- `main.rs` defines the root `Command` (with `#[command(version)]`) and the `Commands` subcommand enum, and does nothing but parse and dispatch. Adding a subcommand means one file in `cmd/`, one enum variant, and one match arm.
+
+**`platform` — self-contained packages, contract-driven.** Each package is a module or directory owning one concern (config, request handlers, the Sail client, self-upgrade, …).
+
+- A package's public API is its contract: plain `pub` functions, types and `impl` blocks, accessed as `crate::platform::<package>::<item>`. Keep it small and documented by its names; everything else in the package is private.
+- Never reach into another package's submodules. If a caller needs something, widen the package's contract deliberately, not by `pub(crate)` tricks.
+- Packages never call `cmd` and never orchestrate each other. Wiring happens in `cmd/*`, which consume packages through their public APIs.
+- A package must be usable without the CLI: its public API takes explicit inputs and returns results, without parsing `std::env` or the process arguments on a caller's behalf unless that is its own concern (e.g. `config`).
+- Each package is registered as a `pub mod` in `platform/mod.rs`.
+
 ## Before you write
 
 Read the task and the code it touches. List every place your change must reach: callers, tests, fixtures, config, public APIs. Check what your change could break: data it would destroy or expose, callers that stop working. That is scope. Extra features are not.
