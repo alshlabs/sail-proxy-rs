@@ -1,26 +1,32 @@
-use std::sync::Arc;
-
+use uhttp::Request;
+use uhttp::Response;
 use uhttp::Router;
 
-use crate::config;
-use crate::handler_context::HandlerContext;
-use crate::handlers;
-use crate::self_upgrade;
+use crate::cmd::serve::handlers::v1_chat_completions_post;
+use crate::platform::config::Config;
+use crate::platform::handler_context::HandlerContext;
+use crate::platform::self_upgrade;
 
-pub async fn run() -> anyhow::Result<()> {
+#[derive(Debug, clap::Args)]
+pub struct ServeCommand {}
+
+pub async fn main(_cmd: ServeCommand) -> anyhow::Result<()> {
   notify_update_available().await;
 
-  let config = Arc::new(config::Config::parse()?);
+  let config = Config::parse()?;
 
   let ctx = HandlerContext {
-    config: config.clone(),
+    config: std::sync::Arc::new(config.clone()),
     client: reqwest::Client::new(),
   };
 
   let mut app = Router::<HandlerContext>::new(ctx).with(uhttp::middleware::logger_default);
 
-  app.any("/health", handlers::health_any);
-  app.post("/v1/chat/completions", handlers::v1_chat_completions_post);
+  app.any(
+    "/health",
+    async |_req: Request, res: Response, _ctx: HandlerContext| res.status(200).empty(),
+  );
+  app.post("/v1/chat/completions", v1_chat_completions_post);
 
   println!("Serving on {}", config.address);
   uhttp::Server::builder()
