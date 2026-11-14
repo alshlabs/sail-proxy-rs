@@ -2,9 +2,9 @@ use uhttp::Request;
 use uhttp::Response;
 use uhttp::Router;
 
-use crate::cmd::serve::handlers::v1_chat_completions_post;
+use super::handlers::HandlerContext;
+use super::handlers::v1_chat_completions_post;
 use crate::config::Config;
-use crate::platform::handler_context::HandlerContext;
 use crate::platform::self_upgrade;
 
 #[derive(Debug, clap::Args)]
