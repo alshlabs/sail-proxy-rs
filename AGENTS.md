@@ -20,24 +20,31 @@ Modules are lightweight packages. Each owns one concern and exposes a minimal pu
 
 ```
 src/
-  cmd/          # CLI subcommands
-    serve.rs
-    upgrade.rs
-  platform/     # self-contained packages
-    config/
-    handler_context/
-    handlers/
+  cmd/                 # CLI subcommands
+    serve/
+      handlers/        # HTTP handlers owned by this command
+        v1_chat_completions_get.rs
+      mod.rs
+      main.rs
+    upgrade/
+      mod.rs
+      main.rs
+  platform/            # self-contained packages
+    access_token.rs
+    config.rs
+    handler_context.rs
     sail/
     self_upgrade/
-  main.rs       # clap root, dispatch only
+  main.rs              # clap root, dispatch only
 ```
 
-**`cmd` — one file per subcommand.** Each holds the clap args struct and the entrypoint:
+**`cmd` — one directory per subcommand.** Each directory is a package with three parts:
 
-- The command's args struct is in the same file, named `ServeCommand`, `UpgradeCommand`, etc. It derives `clap::Args`.
-- The file exports `pub async fn main(cmd: GoCommand) -> anyhow::Result<()>`. `anyhow::Result` is the only CLI return type; use `?` and `anyhow::Context` for errors, and let `main` report them.
-- `cmd/mod.rs` is the single import point: `crate::cmd::ServeCommand` and `crate::cmd::serve`. Never refer to `crate::cmd::serve::...` from outside.
-- `main.rs` defines the root `Command` (with `#[command(version)]`) and the `Commands` subcommand enum, and does nothing but parse and dispatch. Adding a subcommand means one file in `cmd/`, one enum variant, and one match arm.
+- `main.rs` holds the clap args struct, named `ServeCommand`, `UpgradeCommand`, etc. (derives `clap::Args`), and the entrypoint `pub async fn main(cmd: GoCommand) -> anyhow::Result<()>`. `anyhow::Result` is the only CLI return type; use `?` and `anyhow::Context` for errors, and let the binary's `main` report them.
+- `mod.rs` declares the package's parts and re-exports the public items (`pub use self::main::ServeCommand; pub use self::main::main;`).
+- `handlers/` holds the HTTP handlers this command owns, one file per route, re-exported by `handlers/mod.rs`. A handler that is not served by any command belongs in `platform`, not here.
+- `cmd/mod.rs` re-exports each command's args struct only (`crate::cmd::ServeCommand`); `main.rs` dispatches with `serve::main(cmd)` / `upgrade::main(cmd)`.
+- `main.rs` defines the root `Command` (with `#[command(version)]`) and the `Commands` subcommand enum, and does nothing but parse and dispatch. Adding a subcommand means one directory in `cmd/`, one enum variant, and one match arm.
 
 **`platform` — self-contained packages, contract-driven.** Each package is a module or directory owning one concern (config, request handlers, the Sail client, self-upgrade, …).
 

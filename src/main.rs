@@ -6,6 +6,8 @@ use clap::Subcommand;
 
 use crate::cmd::ServeCommand;
 use crate::cmd::UpgradeCommand;
+use crate::cmd::serve;
+use crate::cmd::upgrade;
 
 #[derive(Debug, Parser)]
 #[command(version)]
@@ -26,7 +28,7 @@ enum Commands {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
   match Command::parse().command {
-    Commands::Serve(cmd) => cmd::serve(cmd).await,
-    Commands::Update(cmd) => cmd::upgrade(cmd).await,
+    Commands::Serve(cmd) => serve::main(cmd).await,
+    Commands::Update(cmd) => upgrade::main(cmd).await,
   }
 }

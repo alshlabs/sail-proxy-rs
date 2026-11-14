@@ -1,8 +1,10 @@
+use uhttp::Request;
+use uhttp::Response;
 use uhttp::Router;
 
+use crate::cmd::serve::handlers::v1_chat_completions_post;
 use crate::platform::config::Config;
 use crate::platform::handler_context::HandlerContext;
-use crate::platform::handlers;
 use crate::platform::self_upgrade;
 
 #[derive(Debug, clap::Args)]
@@ -20,8 +22,11 @@ pub async fn main(_cmd: ServeCommand) -> anyhow::Result<()> {
 
   let mut app = Router::<HandlerContext>::new(ctx).with(uhttp::middleware::logger_default);
 
-  app.any("/health", handlers::health_any);
-  app.post("/v1/chat/completions", handlers::v1_chat_completions_post);
+  app.any(
+    "/health",
+    async |_req: Request, res: Response, _ctx: HandlerContext| res.status(200).empty(),
+  );
+  app.post("/v1/chat/completions", v1_chat_completions_post);
 
   println!("Serving on {}", config.address);
   uhttp::Server::builder()

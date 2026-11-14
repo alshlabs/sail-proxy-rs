@@ -7,8 +7,8 @@ use tokio::io::AsyncWriteExt;
 use uhttp::Request;
 use uhttp::Response;
 
+use crate::platform::access_token::access_token;
 use crate::platform::handler_context::HandlerContext;
-use crate::platform::handlers::internal::access_token;
 use crate::platform::sail;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
