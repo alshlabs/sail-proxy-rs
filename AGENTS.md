@@ -23,6 +23,8 @@ src/
   cmd/                 # CLI subcommands
     serve/
       handlers/        # HTTP handlers owned by this command
+        internal/
+          access_token.rs
         v1_chat_completions_get.rs
       mod.rs
       main.rs
@@ -30,11 +32,9 @@ src/
       mod.rs
       main.rs
   platform/            # self-contained packages
-    access_token.rs
-    config.rs
-    handler_context.rs
     sail/
     self_upgrade/
+  config.rs
   main.rs              # clap root, dispatch only
 ```
 
