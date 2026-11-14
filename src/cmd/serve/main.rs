@@ -3,7 +3,7 @@ use uhttp::Response;
 use uhttp::Router;
 
 use crate::cmd::serve::handlers::v1_chat_completions_post;
-use crate::platform::config::Config;
+use crate::config::Config;
 use crate::platform::handler_context::HandlerContext;
 use crate::platform::self_upgrade;
 

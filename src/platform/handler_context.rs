@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::platform::config::Config;
+use crate::config::Config;
 
 #[derive(Clone)]
 pub struct HandlerContext {
